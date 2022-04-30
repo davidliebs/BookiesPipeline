@@ -3,7 +3,6 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
-import mysql.connector
 import random
 
 from bs4 import BeautifulSoup
@@ -19,21 +18,16 @@ class WilliamHillScraper:
 		connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
 		self.channel = connection.channel()
 		self.channel.queue_declare(queue='odds')
-		
-		self.host = '127.0.0.1'
-		self.user = 'david'
-		self.password = 'open1010'
-		self.port = 3306
-		self.db = 'BookiesPipelineDB'
 
 		self.WilliamHillUrl = WilliamHillUrl
 
 		options = Options()
 		options.headless = True
 		self.driver = webdriver.Chrome("/home/david/Downloads/chromedriver", options=options)
+		self.driver.get(self.WilliamHillUrl)
 
 	def ReturnDataFromWebpage(self):
-		self.driver.get(self.WilliamHillUrl)
+		self.driver.refresh()
 		self.page_source = self.driver.page_source
 
 	def ParseThroughPage(self):
@@ -41,9 +35,7 @@ class WilliamHillScraper:
 
 		soup = BeautifulSoup(self.page_source, 'html.parser')
 		for i in soup.find_all("article", {"class": "sp-o-market"}):
-
-			odds_id = "".join( [ str(random.randint(0,9)) for i in range(0,6) ] )
-
+			
 			match_title = i.find("main", {"class": "sp-o-market__title"}).text
 			odds = [x.text for x in i.find_all("button", {"class": "sp-betbutton"})]
 
