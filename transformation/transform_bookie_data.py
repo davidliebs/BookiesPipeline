@@ -1,35 +1,21 @@
 class TransformBookieData:
 	def __init__(self, data):
-		self.bookie, self.odds_timestamp, self.match_title, self.odds = data
-
-
-	def CheckOddsType(self):
-		odd = self.odds[0]
-
-		# checking for decimal odds
-		if "." in odd:
-			self.odd_type = 1
-
-		# checking for fraction odds
-		if "/" in odd:
-			self.odd_type = 2
+		self.data = data
+		self.transformed_data = {}
 
 	def ConvertOddsToDecimal(self):
-		for index in range(len(self.odds)):
-			odd = self.odds[index]
+		for bookie in self.data:
+			decimal_odds = []
 
-			if self.odd_type == 1:
-				odd = int(odd)
+			odds = self.data[bookie]
 
-			elif self.odd_type == 2:
-				numerator, denominator = odd.split("/")
+			for probability in odds:
+				numerator, denominator = probability.split("/")
 				# converting probility --> decimal odd
-				odd = round( int(numerator)/int(denominator) + 1, 2)
+				decimal_odd = round( int(numerator)/int(denominator) + 1, 2)
 
-			self.odds[index] = odd
+				decimal_odds.append(decimal_odd)
+			
+			self.transformed_data[bookie]=decimal_odds
 
-	def Run(self):
-		self.CheckOddsType()
-		self.ConvertOddsToDecimal()
-
-		return self.bookie, self.odds_timestamp, self.match_title, self.odds
+		return self.transformed_data

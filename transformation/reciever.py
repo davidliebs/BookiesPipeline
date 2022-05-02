@@ -8,9 +8,10 @@ def main():
 	channel.queue_declare(queue='odds')
 
 	def callback(ch, method, properties, body):
-		data = json.loads(body.decode())
+		match_url, match_odds = json.loads(body.decode())
 
-		print(data)
+		TransformBookieData = transform_bookie_data.TransformBookieData(match_odds)
+		transformed_odds = TransformBookieData.ConvertOddsToDecimal()
 
 	channel.basic_consume(queue='odds', on_message_callback=callback, auto_ack=True)
 

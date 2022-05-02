@@ -60,7 +60,7 @@ class OddsportalScraper:
 		self.ScrapeMatchUrls()
 		for match_url in self.match_urls:
 			self.ScrapeMatchOdds(match_url)
-			self.channel.basic_publish(exchange='', routing_key='odds', body=json.dumps(self.match_odds))
+			self.channel.basic_publish(exchange='', routing_key='odds', body=json.dumps([match_url, self.match_odds]))
 
 OddsportalScraper = OddsportalScraper()
 OddsportalScraper.Run()
