@@ -5,6 +5,7 @@ import random
 
 from bs4 import BeautifulSoup
 import time
+import pandas as pd
 from datetime import datetime
 import json
 import pika
@@ -35,10 +36,10 @@ class OddsportalScraper:
 					self.match_urls.append("https://www.oddsportal.com" + x.get("href"))
 
 	def ScrapeMatchOdds(self, match_url):
-		self.match_odds = {}
+		df_data = [["match_url", "bookie", "odds"]]
 
 		self.driver.get(match_url)
-		soup = BeautifulSoup(self.driver.page_source)
+		soup = BeautifulSoup(self.driver.page_source, features="lxml")
 
 		table = soup.find("table", {"class": "table-main"})
 		tbody = table.find("tbody")
@@ -52,15 +53,23 @@ class OddsportalScraper:
 				draw_odds = draw_html.text
 				away_odds = away_html.text
 
-				self.match_odds[bookie] = [home_odds, draw_odds, away_odds]
+				odds = [home_odds, draw_odds, away_odds]
+				df_data.append([match_url, bookie, odds])
+
 			except Exception:
 				pass
+
+		self.match_df = pd.DataFrame(columns=df_data[0], data=df_data[1:])
+
+		random_no = "".join([str(random.randint(0, 9)) for i in range(0,9)])
+		path = "/home/david/Documents/projects/files/" + random_no + ".csv"
+		self.match_df.to_csv(path)
 
 	def Run(self):
 		self.ScrapeMatchUrls()
 		for match_url in self.match_urls:
 			self.ScrapeMatchOdds(match_url)
-			self.channel.basic_publish(exchange='', routing_key='odds', body=json.dumps([match_url, self.match_odds]))
+
 
 OddsportalScraper = OddsportalScraper()
 OddsportalScraper.Run()
