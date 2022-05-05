@@ -1,6 +1,8 @@
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType
+import findspark
+findspark.add_packages('mysql:mysql-connector-java:8.0.11')
 
 from ast import literal_eval
 import json
@@ -38,4 +40,10 @@ df = df.withColumn("decimal_odds", convertOddsUDF(df.odds))
 df = df.withColumn("timestamp", F.current_timestamp())
 
 df = df.select("record_uid", "timestamp", "match_url", "bookie", "odds")
-df.show(20)
+df.show()
+df.write.format('jdbc').options(
+	url='jdbc:mysql://localhost/BookiesPipelineDB',
+	driver='com.mysql.jdbc.Driver',
+	dbtable='bookie_odds',
+	user='david',
+	password='open1010').mode('overwrite').save()
