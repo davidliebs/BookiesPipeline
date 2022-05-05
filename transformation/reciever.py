@@ -1,17 +1,23 @@
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import StringType
+from pyspark.sql.types import StringType, StructType
+
 import findspark
 findspark.add_packages('mysql:mysql-connector-java:8.0.11')
 
 from ast import literal_eval
 import json
 import hashlib
+import mysql.connector
 
 spark = SparkSession.builder.appName("Test").getOrCreate()
 
-df = spark.read.csv('/home/david/Documents/projects/files',header=True,inferSchema=True)
+# reading in csv's
+fileSchema = StructType().add("match_url", "string").add("bookie", "string").add("odds", "string")
+df = spark.readStream.option('sep', ',').option('header', 'true').schema(fileSchema).csv('/home/david/Documents/projects/files')
 
+
+# applying transformations
 def CreatePrimaryKey(match_url, bookie):
 	primary_key_string = match_url + bookie
 	primary_key_string = primary_key_string.encode()
@@ -38,12 +44,23 @@ convertOddsUDF = F.udf(lambda z: ConvertProbabilityToDecimal(z), StringType())
 df = df.withColumn("record_uid", createPrimaryKeyUDF(df.match_url, df.bookie))
 df = df.withColumn("decimal_odds", convertOddsUDF(df.odds))
 df = df.withColumn("timestamp", F.current_timestamp())
+df = df.select("record_uid", "timestamp", "match_url", "bookie", "decimal_odds")
 
-df = df.select("record_uid", "timestamp", "match_url", "bookie", "odds")
-df.show()
-df.write.format('jdbc').options(
-	url='jdbc:mysql://localhost/BookiesPipelineDB',
-	driver='com.mysql.jdbc.Driver',
-	dbtable='bookie_odds',
-	user='david',
-	password='open1010').mode('overwrite').save()
+# dumping to mysql
+def process(df, epoch_id):
+	conn = mysql.connector.connect(
+		user="david",
+		password="open1010",
+		host="127.0.0.1",
+		port=3306,
+		database="BookiesPipelineDB"
+	)
+	cur = conn.cursor()
+
+	for row in df.collect():
+		cur.execute("INSERT INTO bookie_odds (record_uid, timestamp, match_url, bookie, odds) VALUES('{}', '{}', '{}', '{}', '{}') ON DUPLICATE KEY UPDATE timestamp='{}', odds='{}'".format(row[0], row[1], row[2], row[3], row[4], row[1], row[4]))
+		conn.commit()
+	conn.close()
+
+query = df.writeStream.foreachBatch(process).start()
+query.awaitTermination()
