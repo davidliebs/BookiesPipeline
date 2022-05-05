@@ -1,44 +1,41 @@
-import pika, sys, os, json
-import transform_bookie_data
-import mysql.connector
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
+from pyspark.sql.types import StringType
 
-def main():
-	connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
-	channel = connection.channel()
+from ast import literal_eval
+import json
+import hashlib
 
-	channel.queue_declare(queue='odds')
+spark = SparkSession.builder.appName("Test").getOrCreate()
 
-	conn = mysql.connector.connect(
-		host="localhost",
-		user="david",
-		password="open1010",
-		database="BookiesPipelineDB"
-	)
-	cur = conn.cursor()
+df = spark.read.csv('/home/david/Documents/projects/files',header=True,inferSchema=True)
 
-	def callback(ch, method, properties, body):
-		match_url, match_odds = json.loads(body.decode())
+def CreatePrimaryKey(match_url, bookie):
+	primary_key_string = match_url + bookie
+	primary_key_string = primary_key_string.encode()
 
-		TransformBookieData = transform_bookie_data.TransformBookieData(match_odds)
-		transformed_odds = TransformBookieData.ConvertOddsToDecimal()
-		transformed_odds = json.dumps(transformed_odds)
+	primary_key_hash = hashlib.md5(primary_key_string).hexdigest()
 
-		cur.execute("""
-			INSERT INTO bookie_odds
-				(match_url, timestamp, odds)
-			VALUES
-				('{}', CURRENT_TIMESTAMP(), '{}')
+	return primary_key_hash
 
-			ON DUPLICATE KEY UPDATE
-				timestamp = CURRENT_TIMESTAMP(),
-				odds = '{}'
-		""".format(match_url, transformed_odds, transformed_odds))
-	
-		conn.commit()
-	
-	channel.basic_consume(queue='odds', on_message_callback=callback, auto_ack=True)
+createPrimaryKeyUDF = F.udf(lambda x, y: CreatePrimaryKey(x, y), StringType())
 
-	print(' [*] Waiting for messages. To exit press CTRL+C')
-	channel.start_consuming()
+def ConvertProbabilityToDecimal(probability_list):
+	decimal_list = []
+	probability_list = literal_eval(probability_list)
+	for i in probability_list:
+		num,den = i.split("/")
+		decimal_odd = 1 + float(num) / float(den)
+		
+		decimal_list.append(decimal_odd)
+		
+	return decimal_list
 
-main()
+convertOddsUDF = F.udf(lambda z: ConvertProbabilityToDecimal(z), StringType())
+
+df = df.withColumn("record_uid", createPrimaryKeyUDF(df.match_url, df.bookie))
+df = df.withColumn("decimal_odds", convertOddsUDF(df.odds))
+df = df.withColumn("timestamp", F.current_timestamp())
+
+df = df.select("record_uid", "timestamp", "match_url", "bookie", "odds")
+df.show(20)

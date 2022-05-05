@@ -63,7 +63,7 @@ class OddsportalScraper:
 
 		random_no = "".join([str(random.randint(0, 9)) for i in range(0,9)])
 		path = "/home/david/Documents/projects/files/" + random_no + ".csv"
-		self.match_df.to_csv(path)
+		self.match_df.to_csv(path, index=False)
 
 	def Run(self):
 		self.ScrapeMatchUrls()
