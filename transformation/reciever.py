@@ -44,7 +44,8 @@ convertOddsUDF = F.udf(lambda z: ConvertProbabilityToDecimal(z), StringType())
 df = df.withColumn("record_uid", createPrimaryKeyUDF(df.match_url, df.bookie))
 df = df.withColumn("decimal_odds", convertOddsUDF(df.odds))
 df = df.withColumn("timestamp", F.current_timestamp())
-df = df.select("record_uid", "timestamp", "match_url", "bookie", "decimal_odds")
+df = df.withColumn("file_name", F.input_file_name())
+df = df.select("record_uid", "timestamp", "match_url", "bookie", "decimal_odds", "file_name")
 
 # dumping to mysql
 def process(df, epoch_id):
@@ -58,8 +59,15 @@ def process(df, epoch_id):
 	cur = conn.cursor()
 
 	for row in df.collect():
-		cur.execute("INSERT INTO bookie_odds (record_uid, timestamp, match_url, bookie, odds) VALUES('{}', '{}', '{}', '{}', '{}') ON DUPLICATE KEY UPDATE timestamp='{}', odds='{}'".format(row[0], row[1], row[2], row[3], row[4], row[1], row[4]))
+		cur.execute("""
+		
+		INSERT INTO bookie_odds (record_uid, timestamp, match_url, bookie, odds, source_filename)
+		VALUES('{}', '{}', '{}', '{}', '{}', '{}') 
+		ON DUPLICATE KEY UPDATE timestamp='{}', odds='{}', source_filename='{}'
+		""".format(row[0], row[1], row[2], row[3], row[4], row[5], row[1], row[4], row[5]))
+
 		conn.commit()
+	
 	conn.close()
 
 query = df.writeStream.foreachBatch(process).start()
