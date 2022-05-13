@@ -13,7 +13,7 @@ import mysql.connector
 spark = SparkSession.builder.appName("Test").getOrCreate()
 
 # reading in csv's
-fileSchema = StructType().add("match_url", "string").add("bookie", "string").add("odds", "string")
+fileSchema = StructType().add("Unnamed: 0", "integer").add("match_url", "string").add("bookie", "string").add("odds", "string")
 df = spark.readStream.option('sep', ',').option('header', 'true').schema(fileSchema).csv('/home/david/Documents/projects/files')
 
 

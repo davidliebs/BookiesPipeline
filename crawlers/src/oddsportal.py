@@ -8,11 +8,16 @@ import time
 import pandas as pd
 from datetime import datetime
 import json
+import pika
 
 import dump_to_gc_storage
 
 class OddsportalScraper:
 	def __init__(self):
+		connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
+		self.channel = connection.channel()
+		self.channel.queue_declare(queue='filenames')
+
 		options = Options()
 		options.headless = True
 		self.driver = webdriver.Chrome("/home/david/Downloads/chromedriver", options=options)
@@ -60,6 +65,8 @@ class OddsportalScraper:
 
 		filename = "".join([str(random.randint(0, 9)) for i in range(0,9)]) + ".csv"
 		dump_to_gc_storage.UploadDfToGoogleCloudStorage(self.match_df, filename)
+
+		self.channel.basic_publish(exchange='', routing_key='filenames', body=json.dumps(filename))
 
 	def Run(self):
 		self.ScrapeMatchUrls()
