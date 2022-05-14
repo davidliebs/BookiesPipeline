@@ -2,12 +2,6 @@ from google.cloud import storage
 import pika, json, os
 import pandas as pd
 
-def DownloadFileFromGCS(filename, path):
-	blob_path = "gs://bookies_csv_files/" + filename
-	df = pd.read_csv(blob_path)
-
-	df.to_csv(os.path.join(path, filename), index=False)
-
 def callback(ch, method, properties, body):
 	body = json.loads(body.decode())
 
