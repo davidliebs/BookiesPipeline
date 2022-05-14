@@ -10,7 +10,11 @@ def DownloadFileFromGCS(filename, path):
 
 def callback(ch, method, properties, body):
 	body = json.loads(body.decode())
-	DownloadFileFromGCS(body, "/home/david/Documents/projects/files")
+
+	blob_path = "gs://bookies_csv_files/" + body
+	df = pd.read_csv(blob_path)
+
+	df.to_csv(os.path.join("/home/david/Documents/projects/files", body), index=False)
 
 
 connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
