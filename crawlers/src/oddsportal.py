@@ -10,13 +10,16 @@ from datetime import datetime
 import json
 import pika
 
-import dump_to_gc_storage
+from google.cloud import storage
 
 class OddsportalScraper:
 	def __init__(self):
 		connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
 		self.channel = connection.channel()
 		self.channel.queue_declare(queue='filenames')
+
+		client = storage.Client()
+		self.bucket = client.get_bucket('bookies_csv_files')
 
 		options = Options()
 		options.headless = True
@@ -63,9 +66,11 @@ class OddsportalScraper:
 
 		self.match_df = pd.DataFrame(columns=df_data[0], data=df_data[1:])
 
+		# uploading file to GCS
 		filename = "".join([str(random.randint(0, 9)) for i in range(0,9)]) + ".csv"
-		dump_to_gc_storage.UploadDfToGoogleCloudStorage(self.match_df, filename)
+		self.bucket.blob(filename).upload_from_string(self.match_df.to_csv(), 'text/csv')
 
+		# pushing filename through MQ
 		self.channel.basic_publish(exchange='', routing_key='filenames', body=json.dumps(filename))
 
 	def Run(self):
