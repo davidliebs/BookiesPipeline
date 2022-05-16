@@ -2,9 +2,6 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructType
 
-import findspark
-findspark.add_packages('mysql:mysql-connector-java:8.0.11')
-
 from ast import literal_eval
 import json
 import hashlib
