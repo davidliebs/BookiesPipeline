@@ -6,6 +6,10 @@ from ast import literal_eval
 import json
 import hashlib
 import mysql.connector
+import configparser
+
+parser = configparser.ConfigParser()
+parser.read("/etc/python_config_files/BookiesPipelineConfig/config.ini")
 
 spark = SparkSession.builder.appName("Test").getOrCreate()
 
@@ -47,9 +51,9 @@ df = df.select("record_uid", "timestamp", "match_url", "bookie", "decimal_odds",
 # dumping to mysql
 def process(df, epoch_id):
 	conn = mysql.connector.connect(
-		user="david",
-		password="open1010",
-		host="127.0.0.1",
+		user=parser["GoogleCloudSQL"]["user"],
+		password=parser["GoogleCloudSQL"]["password"],
+		host=parser["GoogleCloudSQL"]["host"],
 		port=3306,
 		database="BookiesPipelineDB"
 	)
